@@ -8,6 +8,10 @@
     <artifactId>parse_testng_results</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <properties>
+        <dir>${project.basedir}/jar</dir>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -48,6 +52,7 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>2.3</version>
                 <configuration>
+                    <outputDirectory>${dir}</outputDirectory>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>

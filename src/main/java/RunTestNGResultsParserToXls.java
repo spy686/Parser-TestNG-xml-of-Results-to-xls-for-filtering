@@ -63,11 +63,11 @@ public class RunTestNGResultsParserToXls {
         }
 
         String fileNameXls = String.format("%s_%dTs_%dStrs.%s",
-                FilenameUtils.removeExtension(new File(reportTestNGPath).getName()) + File.separator,
+                FilenameUtils.removeExtension(new File(reportTestNGPath).getName()),
                 failedTestsNamesCount,
                 failedTestsStacktracesCount,
                 "xlsx");
-        try (FileOutputStream out = new FileOutputStream(new File(new File(projectDir).getParent() + fileNameXls))) {
+        try (FileOutputStream out = new FileOutputStream(new File(new File(projectDir).getParent() + File.separator + fileNameXls))) {
             workbook.write(out);
         } catch (Exception e) {
             e.printStackTrace();
