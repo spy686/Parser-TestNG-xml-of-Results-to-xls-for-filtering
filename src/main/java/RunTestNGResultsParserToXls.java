@@ -21,8 +21,11 @@ import java.util.stream.Collectors;
 
 public class RunTestNGResultsParserToXls {
 
-    private static final By failedTestsNamesLocator = By.xpath("//div[@class='stacktrace']/preceding::h2[@id]");
-    private static final By failedTestsStacktracesLocator = By.xpath("//h2[@id]//following-sibling::*//div[@class='stacktrace']");
+    private static final By FAILED_TESTS_NAMES_LOCATOR = By.xpath("//div[@class='stacktrace']/preceding::h2[@id]");
+    private static final By FAILED_TESTS_STACKTRACES_LOCATOR = By.xpath("//h2[@id]//following-sibling::*//div[@class='stacktrace']");
+    private static final String FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_XPATH = "//table[@class='invocation-failed']//tr//td[@title]";
+    private static final By FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_LOCATOR = By.xpath(FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_XPATH);
+    private static final By FAILED_TESTS_STACKTRACES_JENKINS_PLUGIN_REPORT_LOCATOR = By.xpath(FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_XPATH + "/following-sibling::td[.//pre]");
 
     public static void main(String[] args) throws UnsupportedEncodingException {
         String projectDir = URLDecoder.decode(new File(RunTestNGResultsParserToXls.class.getProtectionDomain().getCodeSource().getLocation()
@@ -35,7 +38,7 @@ public class RunTestNGResultsParserToXls {
         File file = jFileChooser.getSelectedFile();
 
         //открываем репорт в браузере и покируем путь из строки поиска или просто путь к файлу
-//        String reportTestNGPath = "C:\\Users\\Xiaomi\\Google Диск\\popo\\java\\parse_testng_results\\report.html";
+//        String reportTestNGPath = "C:\\Users\\Xiaomi\\Google Диск\\popo\\java\\Parser-TestNG-xml-of-Results-to-xls-for-filtering\\RegressionSuiteFull.html";
         String reportTestNGPath = file.getAbsolutePath();
 
         WebDriverManager.getInstance(DriverManagerType.CHROME).setup();
@@ -44,10 +47,20 @@ public class RunTestNGResultsParserToXls {
         WebDriver driver = new ChromeDriver(options);
         driver.get(reportTestNGPath);
 
-        List<String> failedTestsNames = driver.findElements(failedTestsNamesLocator).stream().map(WebElement::getText).collect(Collectors.toList());
+        List<String> failedTestsNames;
+        List<String> failedTestsStacktraces;
+        failedTestsNames = getTextElements(driver, FAILED_TESTS_NAMES_LOCATOR);
+        if (failedTestsNames.size() == 0) {
+            failedTestsNames = driver.findElements(FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_LOCATOR).stream()
+                    .map(test -> test.getAttribute("title")).collect(Collectors.toList());
+            failedTestsStacktraces = driver.findElements(FAILED_TESTS_STACKTRACES_JENKINS_PLUGIN_REPORT_LOCATOR).stream()
+                    .map(stacktrace -> stacktrace.getText().replace("Click to show all stack frames", "")).collect(Collectors.toList());
+        } else {
+            failedTestsStacktraces = getTextElements(driver, FAILED_TESTS_STACKTRACES_LOCATOR);
+        }
+
         int failedTestsNamesCount = failedTestsNames.size();
         System.out.println(String.format("Was found %d tests names", failedTestsNamesCount));
-        List<String> failedTestsStacktraces = driver.findElements(failedTestsStacktracesLocator).stream().map(WebElement::getText).collect(Collectors.toList());
         int failedTestsStacktracesCount = failedTestsStacktraces.size();
         System.out.println(String.format("Was found %d tests stacktraces", failedTestsStacktracesCount));
 
@@ -67,13 +80,21 @@ public class RunTestNGResultsParserToXls {
                 failedTestsNamesCount,
                 failedTestsStacktracesCount,
                 "xlsx");
-        try (FileOutputStream out = new FileOutputStream(new File(new File(projectDir).getParent() + File.separator + fileNameXls))) {
+        File excelFile = new File(new File(projectDir).getParent() + File.separator + fileNameXls);
+        System.out.println(String.format("Excel file PATH: %s", excelFile.getPath()));
+        try (FileOutputStream out = new FileOutputStream(excelFile)) {
             workbook.write(out);
         } catch (Exception e) {
-            e.printStackTrace();
             JOptionPane.showMessageDialog(null, e.getMessage());
+            e.printStackTrace();
         }
+        
+        JOptionPane.showMessageDialog(null, String.format("Excel file PATH: %s", excelFile.getPath()));
 
         driver.quit();
+    }
+
+    private static List<String> getTextElements(WebDriver driver, By locator) {
+        return driver.findElements(locator).stream().map(WebElement::getText).collect(Collectors.toList());
     }
 }
