@@ -39,23 +39,26 @@ public class RunTestNGResultsParserToXls {
         String reportTestNGPath = file.getAbsolutePath();
 
         WebDriver driver = initChromeDriver();
-        driver.get(reportTestNGPath);
+        try {
+            driver.get(reportTestNGPath);
 
-        List<String> failedTestsNames;
-        List<String> failedTestsStacktraces;
-        failedTestsNames = getTextElements(driver, FAILED_TESTS_NAMES_LOCATOR);
-        if (failedTestsNames.size() == 0) {
-            failedTestsNames = driver.findElements(FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_LOCATOR).stream()
-                    .map(test -> test.getAttribute("title")).collect(Collectors.toList());
-            failedTestsStacktraces = driver.findElements(FAILED_TESTS_STACKTRACES_JENKINS_PLUGIN_REPORT_LOCATOR).stream()
-                    .map(stacktrace -> stacktrace.getText().replace("Click to show all stack frames", "")).collect(Collectors.toList());
-        } else {
-            failedTestsStacktraces = getTextElements(driver, FAILED_TESTS_STACKTRACES_LOCATOR);
+            List<String> failedTestsNames;
+            List<String> failedTestsStacktraces;
+            failedTestsNames = getTextElements(driver, FAILED_TESTS_NAMES_LOCATOR);
+            if (failedTestsNames.size() == 0) {
+                failedTestsNames = driver.findElements(FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_LOCATOR).stream()
+                        .map(test -> test.getAttribute("title")).collect(Collectors.toList());
+                failedTestsStacktraces = driver.findElements(FAILED_TESTS_STACKTRACES_JENKINS_PLUGIN_REPORT_LOCATOR).stream()
+                        .map(stacktrace -> stacktrace.getText().replace("Click to show all stack frames", "")).collect(Collectors.toList());
+            } else {
+                failedTestsStacktraces = getTextElements(driver, FAILED_TESTS_STACKTRACES_LOCATOR);
+            }
+            fetchXlsReport(reportTestNGPath, failedTestsNames, failedTestsStacktraces);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, e.getMessage());
+        } finally {
+            driver.quit();
         }
-
-        fetchXlsReport(reportTestNGPath, failedTestsNames, failedTestsStacktraces);
-
-        driver.quit();
     }
 
     private static WebDriver initChromeDriver() {
@@ -76,14 +79,13 @@ public class RunTestNGResultsParserToXls {
 
     private static void fetchXlsReport(String reportTestNGPath, List<String> failedTestsNames,
                                        List<String> failedTestsStacktraces) throws UnsupportedEncodingException {
-        XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet sheet = workbook.createSheet("report");
-
         int failedTestsNamesCount = failedTestsNames.size();
         System.out.println(String.format("Was found %d tests names", failedTestsNamesCount));
         int failedTestsStacktracesCount = failedTestsStacktraces.size();
         System.out.println(String.format("Was found %d tests stacktraces", failedTestsStacktracesCount));
 
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("report");
         for (int rowNum = 0; rowNum < failedTestsNames.size(); ++rowNum) {
             Row row = sheet.createRow(rowNum);
             Cell cell1 = row.createCell(0);
