@@ -28,12 +28,9 @@ public class RunTestNGResultsParserToXls {
     private static final By FAILED_TESTS_STACKTRACES_JENKINS_PLUGIN_REPORT_LOCATOR = By.xpath(FAILED_TESTS_NAMES_JENKINS_PLUGIN_REPORT_XPATH + "/following-sibling::td[.//pre]");
 
     public static void main(String[] args) throws UnsupportedEncodingException {
-        String projectDir = URLDecoder.decode(new File(RunTestNGResultsParserToXls.class.getProtectionDomain().getCodeSource().getLocation()
-                .getPath()).getPath() + File.separator, "UTF-8");
-
         JFileChooser jFileChooser = new JFileChooser();
         jFileChooser.setDialogTitle("Choose a report");
-        jFileChooser.setCurrentDirectory(new File(projectDir));
+        jFileChooser.setCurrentDirectory(new File(getProjectDir()));
         jFileChooser.showOpenDialog(null);
         File file = jFileChooser.getSelectedFile();
 
@@ -41,10 +38,7 @@ public class RunTestNGResultsParserToXls {
 //        String reportTestNGPath = "C:\\Users\\Xiaomi\\Google Диск\\popo\\java\\Parser-TestNG-xml-of-Results-to-xls-for-filtering\\RegressionSuiteFull.html";
         String reportTestNGPath = file.getAbsolutePath();
 
-        WebDriverManager.getInstance(DriverManagerType.CHROME).setup();
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("headless");
-        WebDriver driver = new ChromeDriver(options);
+        WebDriver driver = initChromeDriver();
         driver.get(reportTestNGPath);
 
         List<String> failedTestsNames;
@@ -59,13 +53,36 @@ public class RunTestNGResultsParserToXls {
             failedTestsStacktraces = getTextElements(driver, FAILED_TESTS_STACKTRACES_LOCATOR);
         }
 
+        fetchXlsReport(reportTestNGPath, failedTestsNames, failedTestsStacktraces);
+
+        driver.quit();
+    }
+
+    private static WebDriver initChromeDriver() {
+        WebDriverManager.getInstance(DriverManagerType.CHROME).setup();
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("headless");
+        return new ChromeDriver(options);
+    }
+
+    private static List<String> getTextElements(WebDriver driver, By locator) {
+        return driver.findElements(locator).stream().map(WebElement::getText).collect(Collectors.toList());
+    }
+
+    private static String getProjectDir() throws UnsupportedEncodingException {
+        return URLDecoder.decode(new File(RunTestNGResultsParserToXls.class.getProtectionDomain().getCodeSource().getLocation()
+                .getPath()).getPath() + File.separator, "UTF-8");
+    }
+
+    private static void fetchXlsReport(String reportTestNGPath, List<String> failedTestsNames,
+                                       List<String> failedTestsStacktraces) throws UnsupportedEncodingException {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("report");
+
         int failedTestsNamesCount = failedTestsNames.size();
         System.out.println(String.format("Was found %d tests names", failedTestsNamesCount));
         int failedTestsStacktracesCount = failedTestsStacktraces.size();
         System.out.println(String.format("Was found %d tests stacktraces", failedTestsStacktracesCount));
-
-        XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet sheet = workbook.createSheet("report");
 
         for (int rowNum = 0; rowNum < failedTestsNames.size(); ++rowNum) {
             Row row = sheet.createRow(rowNum);
@@ -80,7 +97,7 @@ public class RunTestNGResultsParserToXls {
                 failedTestsNamesCount,
                 failedTestsStacktracesCount,
                 "xlsx");
-        File excelFile = new File(new File(projectDir).getParent() + File.separator + fileNameXls);
+        File excelFile = new File(new File(getProjectDir()).getParent() + File.separator + fileNameXls);
         System.out.println(String.format("Excel file PATH: %s", excelFile.getPath()));
         try (FileOutputStream out = new FileOutputStream(excelFile)) {
             workbook.write(out);
@@ -88,13 +105,6 @@ public class RunTestNGResultsParserToXls {
             JOptionPane.showMessageDialog(null, e.getMessage());
             e.printStackTrace();
         }
-        
         JOptionPane.showMessageDialog(null, String.format("Excel file PATH: %s", excelFile.getPath()));
-
-        driver.quit();
-    }
-
-    private static List<String> getTextElements(WebDriver driver, By locator) {
-        return driver.findElements(locator).stream().map(WebElement::getText).collect(Collectors.toList());
     }
 }
