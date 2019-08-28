@@ -13,7 +13,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -74,8 +76,11 @@ public class RunTestNGResultsParserToXls {
             failedTestsStacktraces = getTextElements(driver, FAILED_TESTS_STACKTRACE_LOCATOR);
         }
 
+        Map<String, List<String>> reportSummary = SummaryReport.groupingTestsFailed(failedTestsNames, failedTestsStacktraces);
+
         Browser.getInstance().exit();
 
+        summaryXlsReport(reportPath, reportSummary);
         return fetchXlsReport(reportPath, failedTestsNames, failedTestsStacktraces);
     }
 
@@ -107,19 +112,48 @@ public class RunTestNGResultsParserToXls {
 
     private static File fetchXlsReport(String reportTestNGPath, List<String> failedTestsNames,
                                        List<String> failedTestsStacktrace) {
-        XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet sheet = workbook.createSheet("report");
-        for (int rowNum = 0; rowNum < failedTestsNames.size(); ++rowNum) {
-            Row row = sheet.createRow(rowNum);
-            Cell cell1 = row.createCell(0);
-            cell1.setCellValue(failedTestsNames.get(rowNum));
-            Cell cell2 = row.createCell(1);
-            cell2.setCellValue(failedTestsStacktrace.get(rowNum));
-        }
-
         String generateFileName = getGenerateReportFileName(reportTestNGPath, failedTestsNames.size(),
                 failedTestsStacktrace.size(), EXCEL_EXTENSION);
-        File excelFile = getGenerateReportFile(generateFileName);
+
+        return createFile(generateFileName, failedTestsNames, failedTestsStacktrace);
+    }
+
+    private static File summaryXlsReport(String reportTestNGPath, Map<String, List<String>> mapTests) {
+        String generateFileName = getGenerateSummaryReportFileName(reportTestNGPath, EXCEL_EXTENSION);
+
+        List<String> failedMethods = new ArrayList<>(mapTests.keySet());
+        List<String> countFailed = new ArrayList<>();
+        List<String> columnTestsCells = new ArrayList<>();
+
+        for(String failedMethod : failedMethods){
+            String columnTestsCell = "";
+
+            countFailed.add(String.valueOf(mapTests.get(failedMethod).size()));
+            List<String> testsList = mapTests.get(failedMethod);
+
+            for(String test : testsList){
+                columnTestsCell = columnTestsCell.concat(test).concat("\r\n");
+            }
+
+            columnTestsCells.add(columnTestsCell);
+        }
+
+        return createFile(generateFileName, countFailed, failedMethods, columnTestsCells);
+    }
+
+    private static File createFile(String fileName, List<String>... columnLists) {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("report");
+        for (int rowNum = 0; rowNum < columnLists[0].size(); ++rowNum) {
+            Row row = sheet.createRow(rowNum);
+
+            for(int columnNum = 0; columnNum < columnLists.length; ++columnNum){
+                Cell cell = row.createCell(columnNum);
+                cell.setCellValue(columnLists[columnNum].get(rowNum));
+            }
+        }
+
+        File excelFile = getGenerateReportFile(fileName);
         try (FileOutputStream out = new FileOutputStream(excelFile)) {
             workbook.write(out);
         } catch (Exception e) {
@@ -129,8 +163,7 @@ public class RunTestNGResultsParserToXls {
         return excelFile;
     }
 
-    public static String getGenerateReportFileName(String reportTestNGPath, int failedTestsNamesCount,
-                                                   int failedTestsStacktraceCount, String extension) {
+    private static String getGenerateReportFileName(String reportTestNGPath, int failedTestsNamesCount, int failedTestsStacktraceCount, String extension) {
         return String.format("%s_%dTests_%dStacktrace.%s",
                 FilenameUtils.removeExtension(new File(reportTestNGPath).getName()),
                 failedTestsNamesCount,
@@ -138,7 +171,13 @@ public class RunTestNGResultsParserToXls {
                 extension);
     }
 
-    public static File getGenerateReportFile(String generateFileName) {
+    private static String getGenerateSummaryReportFileName(String reportTestNGPath, String extension) {
+        return String.format("%s_summary.%s",
+                FilenameUtils.removeExtension(new File(reportTestNGPath).getName()),
+                extension);
+    }
+
+    private static File getGenerateReportFile(String generateFileName) {
         return new File(new File(getDecodeAbsolutePath(getSourcePath())).getParent() + File.separator + generateFileName);
     }
 }
