@@ -10,7 +10,7 @@ public class SummaryReport {
         Map<String, List<String>> testsMap = new HashMap<>();
 
         for (int rowNum = 0; rowNum < failedTestsNames.size(); ++rowNum) {
-            String failedTest = failedTestsNames.get(rowNum).replace(":", ": ");
+            String failedTest = failedTestsNames.get(rowNum).replace("#", ": ");
             String failedMethod = getMethod(failedTestsNames.get(rowNum), failedTestsStacktrace.get(rowNum));
 
             List<String> actualList;
@@ -28,7 +28,7 @@ public class SummaryReport {
     }
 
     private static String getMethod(String failedTest, String stackTrace){
-        String testName = failedTest.split(":")[1];
+        String testName = failedTest.split("#")[1];
 
         List<String> stackTraceStringsList = Arrays.asList(stackTrace.split("\\n"));
         int testStringNum = getNumberString(testName, stackTraceStringsList);
